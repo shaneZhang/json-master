@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
+    "@types/codemirror": "^5.60.17",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^8.57.0",
@@ -20,6 +21,16 @@
     "vite-plugin-web-extension": "^4.1.0"
   },
   "dependencies": {
+    "@codemirror/basic-setup": "^0.20.0",
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/fold": "^0.19.4",
+    "@codemirror/gutter": "^0.19.9",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/language": "^6.12.3",
+    "@codemirror/lint": "^6.9.5",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.40.0",
+    "@lezer/highlight": "^1.2.3",
     "js-yaml": "^4.1.0",
     "jsonpath-plus": "^8.1.0"
   }

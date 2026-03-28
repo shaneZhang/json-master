@@ -1,11 +1,21 @@
 import { JSONFormatter } from '../utils/jsonFormatter.js';
 import { Converters } from '../utils/converters.js';
 import { StorageManager, type Settings, defaultSettings } from '../utils/storage.js';
+import { CodeMirrorEditor } from '../utils/CodeMirrorEditor.js';
+import { JSONTreeView, type TreeNode } from '../utils/JSONTreeView.js';
+import { ErrorMarker, type ErrorInfo } from '../utils/ErrorMarker.js';
 
 /// <reference types="chrome" />
 
 class PopupApp {
   private settings: Settings = defaultSettings;
+  private inputEditor!: CodeMirrorEditor;
+  private outputEditor!: CodeMirrorEditor;
+  private validateEditor!: CodeMirrorEditor;
+  private convertInputEditor!: CodeMirrorEditor;
+  private convertOutputEditor!: CodeMirrorEditor;
+  private treeView!: JSONTreeView;
+  private errorMarker!: ErrorMarker;
 
   constructor() {
     this.init();
@@ -13,10 +23,97 @@ class PopupApp {
 
   private async init(): Promise<void> {
     await this.loadSettings();
+    this.setupEditors();
+    this.setupTreeView();
+    this.setupErrorMarker();
     this.setupEventListeners();
     this.setupTabs();
     this.loadSavedContent();
     this.updateStats();
+  }
+
+  private setupErrorMarker(): void {
+    const errorContainer = document.getElementById('error-container') as HTMLElement;
+    this.errorMarker = new ErrorMarker(errorContainer, (error: ErrorInfo) => {
+      this.handleErrorClick(error);
+    });
+  }
+
+  private setupTreeView(): void {
+    const treeContainer = document.getElementById('tree-container') as HTMLElement;
+    this.treeView = new JSONTreeView(treeContainer, (node: TreeNode) => {
+      this.handleTreeNodeClick(node);
+    });
+  }
+
+  private setupEditors(): void {
+    // Replace input textarea with CodeMirror editor
+    const inputTextarea = document.getElementById('input-editor') as HTMLTextAreaElement;
+    const inputWrapper = inputTextarea.parentElement as HTMLElement;
+    inputTextarea.style.display = 'none';
+    
+    const inputEditorContainer = document.createElement('div');
+    inputEditorContainer.style.cssText = 'flex: 1; width: 100%; height: 100%; min-height: 200px;';
+    inputWrapper.appendChild(inputEditorContainer);
+    
+    this.inputEditor = new CodeMirrorEditor(inputEditorContainer, {
+      placeholder: '在此粘贴 JSON 数据...',
+      onChange: () => this.handleInputChange(),
+    });
+
+    // Replace output textarea with CodeMirror editor
+    const outputTextarea = document.getElementById('output-editor') as HTMLTextAreaElement;
+    const outputWrapper = outputTextarea.parentElement as HTMLElement;
+    outputTextarea.style.display = 'none';
+    
+    const outputEditorContainer = document.createElement('div');
+    outputEditorContainer.style.cssText = 'flex: 1; width: 100%; height: 100%; min-height: 200px;';
+    outputWrapper.appendChild(outputEditorContainer);
+    
+    this.outputEditor = new CodeMirrorEditor(outputEditorContainer, {
+      readonly: true,
+      placeholder: '格式化后的结果将显示在这里...',
+    });
+
+    // Replace validate textarea with CodeMirror editor
+    const validateTextarea = document.getElementById('validate-input') as HTMLTextAreaElement;
+    const validateWrapper = validateTextarea.parentElement as HTMLElement;
+    validateTextarea.style.display = 'none';
+    
+    const validateEditorContainer = document.createElement('div');
+    validateEditorContainer.style.cssText = 'flex: 1; width: 100%; height: 100%; min-height: 200px;';
+    validateWrapper.appendChild(validateEditorContainer);
+    
+    this.validateEditor = new CodeMirrorEditor(validateEditorContainer, {
+      placeholder: '在此粘贴要验证的 JSON 数据...',
+    });
+
+    // Replace convert input textarea with CodeMirror editor
+    const convertInputTextarea = document.getElementById('convert-input') as HTMLTextAreaElement;
+    const convertInputWrapper = convertInputTextarea.parentElement as HTMLElement;
+    convertInputTextarea.style.display = 'none';
+    
+    const convertInputEditorContainer = document.createElement('div');
+    convertInputEditorContainer.style.cssText = 'flex: 1; width: 100%; height: 100%; min-height: 200px;';
+    convertInputWrapper.appendChild(convertInputEditorContainer);
+    
+    this.convertInputEditor = new CodeMirrorEditor(convertInputEditorContainer, {
+      placeholder: '在此粘贴数据...',
+    });
+
+    // Replace convert output textarea with CodeMirror editor
+    const convertOutputTextarea = document.getElementById('convert-output') as HTMLTextAreaElement;
+    const convertOutputWrapper = convertOutputTextarea.parentElement as HTMLElement;
+    convertOutputTextarea.style.display = 'none';
+    
+    const convertOutputEditorContainer = document.createElement('div');
+    convertOutputEditorContainer.style.cssText = 'flex: 1; width: 100%; height: 100%; min-height: 200px;';
+    convertOutputWrapper.appendChild(convertOutputEditorContainer);
+    
+    this.convertOutputEditor = new CodeMirrorEditor(convertOutputEditorContainer, {
+      readonly: true,
+      placeholder: '转换后的结果将显示在这里...',
+    });
   }
 
   private async loadSettings(): Promise<void> {
@@ -48,6 +145,18 @@ class PopupApp {
     document.getElementById('btn-sample')?.addEventListener('click', () => this.loadSample());
     document.getElementById('btn-copy')?.addEventListener('click', () => this.handleCopy('output-editor'));
     document.getElementById('btn-download')?.addEventListener('click', () => this.handleDownload('output-editor', 'json'));
+
+    // Tree view
+    document.getElementById('tree-search')?.addEventListener('input', (e) => {
+      const query = (e.target as HTMLInputElement).value;
+      this.treeView.setSearchQuery(query);
+    });
+    document.getElementById('btn-expand-all')?.addEventListener('click', () => {
+      this.treeView.expandAll();
+    });
+    document.getElementById('btn-collapse-all')?.addEventListener('click', () => {
+      this.treeView.collapseAll();
+    });
 
     // Validate panel
     document.getElementById('btn-validate')?.addEventListener('click', () => this.handleValidate());
@@ -106,26 +215,99 @@ class PopupApp {
 
   private async loadSavedContent(): Promise<void> {
     const content = await StorageManager.getCurrentContent();
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    if (inputEditor && content) {
-      inputEditor.value = content;
+    if (content) {
+      this.inputEditor.setValue(content);
       this.updateStats();
     }
   }
 
   private handleInputChange(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    if (inputEditor) {
-      StorageManager.saveCurrentContent(inputEditor.value);
-      this.updateStats();
+    const content = this.inputEditor.getValue();
+    StorageManager.saveCurrentContent(content);
+    this.updateStats();
+    this.updateTreeView();
+  }
+
+  private updateTreeView(): void {
+    const content = this.inputEditor.getValue().trim();
+    if (!content) {
+      this.treeView.clear();
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(content);
+      this.treeView.setData(parsed);
+    } catch {
+      this.treeView.clear();
+    }
+  }
+
+  private handleTreeNodeClick(node: TreeNode): void {
+    const content = this.inputEditor.getValue();
+    const pathParts = this.parseJSONPath(node.path);
+    const position = this.findPositionInJSON(content, pathParts);
+    
+    if (position) {
+      this.inputEditor.scrollToLine(position.line);
+    }
+  }
+
+  private handleErrorClick(error: ErrorInfo): void {
+    this.validateEditor.scrollToLine(error.line);
+  }
+
+  private parseJSONPath(path: string): (string | number)[] {
+    const parts: (string | number)[] = [];
+    const regex = /\.([^.[\]]+)|\[(\d+)\]/g;
+    let match;
+
+    while ((match = regex.exec(path)) !== null) {
+      if (match[1]) {
+        parts.push(match[1]);
+      } else if (match[2]) {
+        parts.push(parseInt(match[2], 10));
+      }
+    }
+
+    return parts;
+  }
+
+  private findPositionInJSON(json: string, path: (string | number)[]): { line: number; column: number } | null {
+    try {
+      const parsed = JSON.parse(json);
+      let current: unknown = parsed;
+      let searchKey = '';
+
+      for (const part of path) {
+        if (current !== null && typeof current === 'object') {
+          if (Array.isArray(current) && typeof part === 'number') {
+            current = current[part];
+            searchKey = String(part);
+          } else if (!Array.isArray(current) && typeof part === 'string') {
+            current = (current as Record<string, unknown>)[part];
+            searchKey = part;
+          }
+        }
+      }
+
+      const lines = json.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const keyMatch = line.indexOf(`"${searchKey}"`);
+        if (keyMatch !== -1) {
+          return { line: i + 1, column: keyMatch + 1 };
+        }
+      }
+
+      return { line: 1, column: 1 };
+    } catch {
+      return null;
     }
   }
 
   private updateStats(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    if (!inputEditor) return;
-
-    const content = inputEditor.value;
+    const content = this.inputEditor.getValue();
     const stats = JSONFormatter.getStats(content);
 
     const lengthEl = document.getElementById('stats-length');
@@ -136,12 +318,7 @@ class PopupApp {
   }
 
   private handleFormat(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('output-editor') as HTMLTextAreaElement;
-
-    if (!inputEditor || !outputEditor) return;
-
-    const input = inputEditor.value.trim();
+    const input = this.inputEditor.getValue().trim();
     if (!input) {
       this.showStatus('请输入 JSON 数据', 'error');
       return;
@@ -157,7 +334,7 @@ class PopupApp {
         escapeUnicode: this.settings.escapeUnicode,
       });
 
-      outputEditor.value = result;
+      this.outputEditor.setValue(result);
       this.showStatus('格式化成功', 'success');
 
       StorageManager.addHistoryItem({
@@ -170,12 +347,7 @@ class PopupApp {
   }
 
   private handleMinify(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('output-editor') as HTMLTextAreaElement;
-
-    if (!inputEditor || !outputEditor) return;
-
-    const input = inputEditor.value.trim();
+    const input = this.inputEditor.getValue().trim();
     if (!input) {
       this.showStatus('请输入 JSON 数据', 'error');
       return;
@@ -183,7 +355,7 @@ class PopupApp {
 
     try {
       const result = JSONFormatter.minify(input);
-      outputEditor.value = result;
+      this.outputEditor.setValue(result);
       this.showStatus('压缩成功', 'success');
     } catch (error) {
       this.showStatus(`压缩失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error');
@@ -191,14 +363,18 @@ class PopupApp {
   }
 
   private handleValidate(): void {
-    const inputEditor = document.getElementById('validate-input') as HTMLTextAreaElement;
     const resultContainer = document.getElementById('validation-result');
+    const errorPanel = document.getElementById('error-panel');
+    const errorCount = document.getElementById('error-count');
+    
+    if (!resultContainer || !errorPanel || !errorCount) return;
 
-    if (!inputEditor || !resultContainer) return;
-
-    const input = inputEditor.value.trim();
+    const input = this.validateEditor.getValue().trim();
     if (!input) {
       resultContainer.innerHTML = '<div class="result-error">请输入 JSON 数据</div>';
+      errorPanel.style.display = 'none';
+      this.validateEditor.clearErrorLines();
+      this.errorMarker.clear();
       return;
     }
 
@@ -219,11 +395,25 @@ class PopupApp {
           </div>
         </div>
       `;
+      errorPanel.style.display = 'none';
+      this.validateEditor.clearErrorLines();
+      this.errorMarker.clear();
     } else {
       let errorLocation = '';
+      const errors: ErrorInfo[] = [];
+      
       if (validation.position !== undefined) {
         const location = JSONFormatter.getErrorLocation(input, validation.position);
         errorLocation = ` (第 ${location.line} 行, 第 ${location.column} 列)`;
+        this.validateEditor.setErrorLine(location.line);
+        this.validateEditor.scrollToLine(location.line);
+        
+        errors.push({
+          line: location.line,
+          column: location.column,
+          message: validation.error || 'JSON 格式错误',
+          severity: 'error',
+        });
       }
 
       resultContainer.innerHTML = `
@@ -232,17 +422,23 @@ class PopupApp {
           <div class="result-message">${validation.error || '未知错误'}</div>
         </div>
       `;
+      
+      errorPanel.style.display = 'block';
+      errorCount.textContent = String(errors.length);
+      this.errorMarker.setErrors(errors.map(err => ({
+        from: { line: err.line, column: err.column },
+        to: { line: err.line, column: err.column + 1 },
+        message: err.message,
+        severity: err.severity,
+      })));
     }
   }
 
   private handleConvert(): void {
-    const inputEditor = document.getElementById('convert-input') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('convert-output') as HTMLTextAreaElement;
     const typeSelect = document.getElementById('select-convert-type') as HTMLSelectElement;
+    if (!typeSelect) return;
 
-    if (!inputEditor || !outputEditor || !typeSelect) return;
-
-    const input = inputEditor.value.trim();
+    const input = this.convertInputEditor.getValue().trim();
     if (!input) {
       this.showStatus('请输入数据', 'error');
       return;
@@ -272,7 +468,7 @@ class PopupApp {
           throw new Error('未知的转换类型');
       }
 
-      outputEditor.value = result;
+      this.convertOutputEditor.setValue(result);
       this.showStatus('转换成功', 'success');
 
       StorageManager.addHistoryItem({
@@ -287,9 +483,22 @@ class PopupApp {
   private async handlePaste(editorId: string): Promise<void> {
     try {
       const text = await navigator.clipboard.readText();
-      const editor = document.getElementById(editorId) as HTMLTextAreaElement;
+      let editor: CodeMirrorEditor | undefined;
+
+      switch (editorId) {
+        case 'input-editor':
+          editor = this.inputEditor;
+          break;
+        case 'validate-input':
+          editor = this.validateEditor;
+          break;
+        case 'convert-input':
+          editor = this.convertInputEditor;
+          break;
+      }
+
       if (editor) {
-        editor.value = text;
+        editor.setValue(text);
         this.showStatus('粘贴成功', 'success');
 
         if (editorId === 'input-editor') {
@@ -303,13 +512,23 @@ class PopupApp {
   }
 
   private async handleCopy(editorId: string): Promise<void> {
-    const editor = document.getElementById(editorId) as HTMLTextAreaElement;
-    if (!editor || !editor.value) {
+    let content = '';
+
+    switch (editorId) {
+      case 'output-editor':
+        content = this.outputEditor.getValue();
+        break;
+      case 'convert-output':
+        content = this.convertOutputEditor.getValue();
+        break;
+    }
+
+    if (!content) {
       this.showStatus('没有可复制的内容', 'error');
       return;
     }
 
-    const success = await StorageManager.copyToClipboard(editor.value);
+    const success = await StorageManager.copyToClipboard(content);
     if (success) {
       this.showStatus('已复制到剪贴板', 'success');
     } else {
@@ -318,38 +537,40 @@ class PopupApp {
   }
 
   private handleClear(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('output-editor') as HTMLTextAreaElement;
-
-    if (inputEditor) inputEditor.value = '';
-    if (outputEditor) outputEditor.value = '';
-
+    this.inputEditor.clear();
+    this.outputEditor.clear();
     StorageManager.saveCurrentContent('');
     this.updateStats();
     this.showStatus('已清空', 'success');
   }
 
   private handleClearValidate(): void {
-    const inputEditor = document.getElementById('validate-input') as HTMLTextAreaElement;
+    this.validateEditor.clear();
+    this.validateEditor.clearErrorLines();
     const resultContainer = document.getElementById('validation-result');
-
-    if (inputEditor) inputEditor.value = '';
     if (resultContainer) {
       resultContainer.innerHTML = '<div class="result-placeholder">点击"验证 JSON"按钮开始验证</div>';
     }
   }
 
   private handleClearConvert(): void {
-    const inputEditor = document.getElementById('convert-input') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('convert-output') as HTMLTextAreaElement;
-
-    if (inputEditor) inputEditor.value = '';
-    if (outputEditor) outputEditor.value = '';
+    this.convertInputEditor.clear();
+    this.convertOutputEditor.clear();
   }
 
   private handleDownload(editorId: string, type: string): void {
-    const editor = document.getElementById(editorId) as HTMLTextAreaElement;
-    if (!editor || !editor.value) {
+    let content = '';
+
+    switch (editorId) {
+      case 'output-editor':
+        content = this.outputEditor.getValue();
+        break;
+      case 'convert-output':
+        content = this.convertOutputEditor.getValue();
+        break;
+    }
+
+    if (!content) {
       this.showStatus('没有可下载的内容', 'error');
       return;
     }
@@ -358,15 +579,15 @@ class PopupApp {
     const mimeType = type === 'json' ? 'application/json' : 'text/plain';
     const filename = `output.${extension}`;
 
-    StorageManager.downloadFile(editor.value, filename, mimeType);
+    StorageManager.downloadFile(content, filename, mimeType);
     this.showStatus('下载已开始', 'success');
   }
 
   private handleConvertDownload(): void {
-    const outputEditor = document.getElementById('convert-output') as HTMLTextAreaElement;
     const typeSelect = document.getElementById('select-convert-type') as HTMLSelectElement;
+    const content = this.convertOutputEditor.getValue();
 
-    if (!outputEditor || !outputEditor.value) {
+    if (!content) {
       this.showStatus('没有可下载的内容', 'error');
       return;
     }
@@ -383,7 +604,7 @@ class PopupApp {
     const extension = extensionMap[convertType] || 'txt';
     const filename = `converted.${extension}`;
 
-    StorageManager.downloadFile(outputEditor.value, filename, 'text/plain');
+    StorageManager.downloadFile(content, filename, 'text/plain');
     this.showStatus('下载已开始', 'success');
   }
 
@@ -445,14 +666,12 @@ class PopupApp {
     const item = history.find(h => h.id === id);
 
     if (item) {
-      const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-      if (inputEditor) {
-        inputEditor.value = item.content;
-        StorageManager.saveCurrentContent(item.content);
-        this.updateStats();
-        this.switchTab('format');
-        this.showStatus('已加载历史记录', 'success');
-      }
+      this.inputEditor.setValue(item.content);
+      StorageManager.saveCurrentContent(item.content);
+      this.updateStats();
+      this.updateTreeView();
+      this.switchTab('format');
+      this.showStatus('已加载历史记录', 'success');
     }
   }
 
@@ -482,12 +701,9 @@ class PopupApp {
       "count": 42
     };
 
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    if (inputEditor) {
-      inputEditor.value = JSON.stringify(sampleData);
-      this.handleInputChange();
-      this.showStatus('已加载示例数据', 'success');
-    }
+    this.inputEditor.setValue(JSON.stringify(sampleData, null, 2));
+    this.handleInputChange();
+    this.showStatus('已加载示例数据', 'success');
   }
 
   private showStatus(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
