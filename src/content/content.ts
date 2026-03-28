@@ -124,10 +124,11 @@
   // Listen for messages from popup or background
   chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     switch (request.action) {
-      case 'getSelectedText':
+      case 'getSelectedText': {
         const selection = window.getSelection()?.toString() || '';
         sendResponse({ text: selection });
         break;
+      }
         
       case 'formatPageJson':
         formatPageJson();

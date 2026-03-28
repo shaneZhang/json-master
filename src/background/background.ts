@@ -1,5 +1,7 @@
 /// <reference types="chrome" />
 
+import { JSONFormatter } from '../utils/jsonFormatter.js';
+
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('JSON Master installed', details);
   
@@ -40,18 +42,40 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   (async () => {
     try {
       switch (request.action) {
-        case 'formatJson':
-          sendResponse({ success: true });
+        case 'formatJson': {
+          try {
+            const formatted = JSONFormatter.format(request.json, {
+              indent: 2,
+              sortKeys: false,
+            });
+            sendResponse({ success: true, result: formatted });
+          } catch (error) {
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            });
+          }
           break;
-          
-        case 'validateJson':
-          sendResponse({ success: true });
+        }
+        
+        case 'validateJson': {
+          try {
+            const validation = JSONFormatter.validate(request.json);
+            sendResponse({ success: true, valid: validation.valid, error: validation.error });
+          } catch (error) {
+            sendResponse({ 
+              success: false, 
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            });
+          }
           break;
+        }
           
-        case 'getSettings':
+        case 'getSettings': {
           const settings = await chrome.storage.sync.get('json_master_settings');
           sendResponse({ success: true, settings: settings['json_master_settings'] });
           break;
+        }
           
         case 'saveSettings':
           await chrome.storage.sync.set({ 'json_master_settings': request.settings });

@@ -91,8 +91,20 @@ export class JSONFormatter {
         arrays: stats.arrays,
         objects: stats.objects,
       };
-    } catch {
-      return { length: json.length, lines: json.split('\n').length, depth: 0, keys: 0, arrays: 0, objects: 0 };
+    } catch (error) {
+      let lines = 0;
+      if (json.trim()) {
+        try {
+          const errorPos = error instanceof SyntaxError 
+            ? parseInt(error.message.match(/position (\d+)/)?.[1] || '0', 10)
+            : 0;
+          const validJson = json.substring(0, errorPos > 0 ? errorPos : json.length);
+          lines = validJson.split('\n').length;
+        } catch {
+          lines = 1;
+        }
+      }
+      return { length: json.length, lines, depth: 0, keys: 0, arrays: 0, objects: 0 };
     }
   }
 
@@ -107,6 +119,7 @@ export class JSONFormatter {
   }
 
   private static escapeUnicode(str: string): string {
+    // eslint-disable-next-line no-control-regex
     return str.replace(/[^\x00-\x7F]/g, (char) => {
       return '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
     });
@@ -118,7 +131,7 @@ export class JSONFormatter {
     arrays: number; 
     objects: number;
   } {
-    let stats = { depth, keys: 0, arrays: 0, objects: 0 };
+    const stats = { depth, keys: 0, arrays: 0, objects: 0 };
 
     if (Array.isArray(value)) {
       stats.arrays++;

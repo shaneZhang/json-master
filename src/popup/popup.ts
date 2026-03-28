@@ -154,6 +154,7 @@ class PopupApp {
       const result = JSONFormatter.format(input, {
         indent,
         sortKeys: this.settings.sortKeys,
+        escapeUnicode: this.settings.escapeUnicode,
       });
 
       outputEditor.value = result;
