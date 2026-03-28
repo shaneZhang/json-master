@@ -27,4 +27,12 @@ export default defineConfig({
     },
   },
   publicDir: 'public',
+  optimizeDeps: {
+    include: ['monaco-editor'],
+  },
+  server: {
+    fs: {
+      allow: ['..'],
+    },
+  },
 });

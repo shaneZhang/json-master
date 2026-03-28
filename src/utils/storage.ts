@@ -8,7 +8,7 @@ export interface HistoryItem {
 }
 
 export interface Settings {
-  indent: number | 'tab';
+  indent: number | '\t';
   sortKeys: boolean;
   escapeUnicode: boolean;
   theme: 'light' | 'dark' | 'auto';
