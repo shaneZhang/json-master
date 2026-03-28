@@ -39,7 +39,6 @@
     </nav>
 
     <main class="main-content">
-      <!-- 格式化面板 -->
       <div id="panel-format" class="panel active">
         <div class="toolbar">
           <div class="toolbar-group">
@@ -57,30 +56,51 @@
               <span>排序键名</span>
             </label>
           </div>
+          <div class="toolbar-group">
+            <button id="btn-fold-all" class="btn btn-secondary" title="全部折叠">折叠</button>
+            <button id="btn-unfold-all" class="btn btn-secondary" title="全部展开">展开</button>
+          </div>
         </div>
         
-        <div class="editor-container">
-          <div class="editor-wrapper">
-            <div class="editor-header">
-              <span>输入</span>
-              <div class="editor-actions">
-                <button id="btn-paste" class="text-btn">粘贴</button>
-                <button id="btn-clear" class="text-btn">清空</button>
-                <button id="btn-sample" class="text-btn">示例</button>
+        <div class="editor-layout">
+          <div class="editor-main">
+            <div class="editor-container">
+              <div class="editor-wrapper input-editor">
+                <div class="editor-header">
+                  <span>输入</span>
+                  <div class="editor-actions">
+                    <button id="btn-paste" class="text-btn">粘贴</button>
+                    <button id="btn-clear" class="text-btn">清空</button>
+                    <button id="btn-sample" class="text-btn">示例</button>
+                  </div>
+                </div>
+                <div id="input-editor-container" class="code-editor"></div>
+              </div>
+              
+              <div class="editor-wrapper output-editor">
+                <div class="editor-header">
+                  <span>输出</span>
+                  <div class="editor-actions">
+                    <button id="btn-copy" class="text-btn">复制</button>
+                    <button id="btn-download" class="text-btn">下载</button>
+                  </div>
+                </div>
+                <div id="output-editor-container" class="code-editor"></div>
               </div>
             </div>
-            <textarea id="input-editor" class="editor" placeholder="在此粘贴 JSON 数据..."></textarea>
+            
+            <div id="error-list" class="error-list-panel"></div>
           </div>
           
-          <div class="editor-wrapper">
-            <div class="editor-header">
-              <span>输出</span>
-              <div class="editor-actions">
-                <button id="btn-copy" class="text-btn">复制</button>
-                <button id="btn-download" class="text-btn">下载</button>
+          <div class="sidebar">
+            <div class="sidebar-header">
+              <span>JSON 结构</span>
+              <div class="sidebar-actions">
+                <button id="btn-expand-nav" class="text-btn" title="全部展开">展开</button>
+                <button id="btn-collapse-nav" class="text-btn" title="全部折叠">折叠</button>
               </div>
             </div>
-            <textarea id="output-editor" class="editor" readonly placeholder="格式化后的结果将显示在这里..."></textarea>
+            <div id="json-path-nav" class="json-nav-container"></div>
           </div>
         </div>
         
@@ -93,7 +113,6 @@
         </div>
       </div>
 
-      <!-- 验证面板 -->
       <div id="panel-validate" class="panel">
         <div class="toolbar">
           <button id="btn-validate" class="btn btn-primary">验证 JSON</button>
@@ -108,7 +127,7 @@
                 <button id="btn-validate-clear" class="text-btn">清空</button>
               </div>
             </div>
-            <textarea id="validate-input" class="editor" placeholder="在此粘贴要验证的 JSON 数据..."></textarea>
+            <div id="validate-editor-container" class="code-editor"></div>
           </div>
         </div>
         
@@ -117,7 +136,6 @@
         </div>
       </div>
 
-      <!-- 转换面板 -->
       <div id="panel-convert" class="panel">
         <div class="toolbar">
           <div class="toolbar-group">
@@ -141,7 +159,7 @@
                 <button id="btn-convert-clear" class="text-btn">清空</button>
               </div>
             </div>
-            <textarea id="convert-input" class="editor" placeholder="在此粘贴数据..."></textarea>
+            <div id="convert-input-container" class="code-editor"></div>
           </div>
           
           <div class="editor-wrapper">
@@ -152,12 +170,11 @@
                 <button id="btn-convert-download" class="text-btn">下载</button>
               </div>
             </div>
-            <textarea id="convert-output" class="editor" readonly placeholder="转换后的结果将显示在这里..."></textarea>
+            <div id="convert-output-container" class="code-editor"></div>
           </div>
         </div>
       </div>
 
-      <!-- 历史面板 -->
       <div id="panel-history" class="panel">
         <div class="toolbar">
           <button id="btn-clear-history" class="btn btn-secondary">清空历史</button>

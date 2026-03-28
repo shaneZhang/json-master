@@ -1,11 +1,19 @@
 import { JSONFormatter } from '../utils/jsonFormatter.js';
 import { Converters } from '../utils/converters.js';
 import { StorageManager, type Settings, defaultSettings } from '../utils/storage.js';
+import { JSONEditor, JSONPathNavigator, ErrorListPanel, type ParseError, type TreeNode } from '../editor/index.js';
 
 /// <reference types="chrome" />
 
 class PopupApp {
   private settings: Settings = defaultSettings;
+  private inputEditor: JSONEditor | null = null;
+  private outputEditor: JSONEditor | null = null;
+  private validateEditor: JSONEditor | null = null;
+  private convertInputEditor: JSONEditor | null = null;
+  private convertOutputEditor: JSONEditor | null = null;
+  private pathNavigator: JSONPathNavigator | null = null;
+  private errorListPanel: ErrorListPanel | null = null;
 
   constructor() {
     this.init();
@@ -15,6 +23,7 @@ class PopupApp {
     await this.loadSettings();
     this.setupEventListeners();
     this.setupTabs();
+    this.initEditors();
     this.loadSavedContent();
     this.updateStats();
   }
@@ -39,39 +48,128 @@ class PopupApp {
     }
   }
 
+  private initEditors(): void {
+    const inputContainer = document.getElementById('input-editor-container');
+    const outputContainer = document.getElementById('output-editor-container');
+    const validateContainer = document.getElementById('validate-editor-container');
+    const convertInputContainer = document.getElementById('convert-input-container');
+    const convertOutputContainer = document.getElementById('convert-output-container');
+    const pathNavContainer = document.getElementById('json-path-nav');
+    const errorListContainer = document.getElementById('error-list');
+
+    if (inputContainer) {
+      this.inputEditor = new JSONEditor(inputContainer, {
+        onChange: (value) => {
+          StorageManager.saveCurrentContent(value);
+          this.updateStats();
+          this.updatePathNavigator(value);
+        },
+        onErrorChange: (errors) => {
+          this.updateErrorList(errors);
+        },
+      });
+    }
+
+    if (outputContainer) {
+      this.outputEditor = new JSONEditor(outputContainer, {
+        readonly: true,
+      });
+    }
+
+    if (validateContainer) {
+      this.validateEditor = new JSONEditor(validateContainer, {
+        onChange: () => {
+          this.clearValidationResult();
+        },
+      });
+    }
+
+    if (convertInputContainer) {
+      this.convertInputEditor = new JSONEditor(convertInputContainer, {});
+    }
+
+    if (convertOutputContainer) {
+      this.convertOutputEditor = new JSONEditor(convertOutputContainer, {
+        readonly: true,
+      });
+    }
+
+    if (pathNavContainer) {
+      this.pathNavigator = new JSONPathNavigator(pathNavContainer, {
+        onNodeClick: (node) => this.handleNodeClick(node),
+        onNodeHover: (node) => this.handleNodeHover(node),
+      });
+    }
+
+    if (errorListContainer) {
+      this.errorListPanel = new ErrorListPanel(errorListContainer, {
+        onErrorClick: (error) => this.handleErrorClick(error),
+      });
+    }
+  }
+
+  private updatePathNavigator(json: string): void {
+    if (this.pathNavigator) {
+      this.pathNavigator.parseJSON(json);
+    }
+  }
+
+  private updateErrorList(errors: ParseError[]): void {
+    if (this.errorListPanel) {
+      this.errorListPanel.setErrors(errors);
+    }
+  }
+
+  private handleNodeClick(node: TreeNode): void {
+    if (this.inputEditor) {
+      this.inputEditor.goToLine(node.position.line);
+    }
+  }
+
+  private handleNodeHover(node: TreeNode | null): void {
+    if (node && this.inputEditor) {
+      const pos = this.inputEditor.getLinePosition(node.position.line);
+      if (pos) {
+        this.inputEditor.setSelection(pos.from, pos.to);
+      }
+    }
+  }
+
+  private handleErrorClick(error: ParseError): void {
+    if (this.inputEditor) {
+      this.inputEditor.goToLine(error.line);
+    }
+  }
+
   private setupEventListeners(): void {
-    // Format panel
     document.getElementById('btn-format')?.addEventListener('click', () => this.handleFormat());
     document.getElementById('btn-minify')?.addEventListener('click', () => this.handleMinify());
-    document.getElementById('btn-paste')?.addEventListener('click', () => this.handlePaste('input-editor'));
+    document.getElementById('btn-paste')?.addEventListener('click', () => this.handlePaste('input'));
     document.getElementById('btn-clear')?.addEventListener('click', () => this.handleClear());
     document.getElementById('btn-sample')?.addEventListener('click', () => this.loadSample());
-    document.getElementById('btn-copy')?.addEventListener('click', () => this.handleCopy('output-editor'));
-    document.getElementById('btn-download')?.addEventListener('click', () => this.handleDownload('output-editor', 'json'));
+    document.getElementById('btn-copy')?.addEventListener('click', () => this.handleCopy('output'));
+    document.getElementById('btn-download')?.addEventListener('click', () => this.handleDownload('output', 'json'));
 
-    // Validate panel
     document.getElementById('btn-validate')?.addEventListener('click', () => this.handleValidate());
-    document.getElementById('btn-validate-paste')?.addEventListener('click', () => this.handlePaste('validate-input'));
+    document.getElementById('btn-validate-paste')?.addEventListener('click', () => this.handlePaste('validate'));
     document.getElementById('btn-validate-clear')?.addEventListener('click', () => this.handleClearValidate());
 
-    // Convert panel
     document.getElementById('btn-convert')?.addEventListener('click', () => this.handleConvert());
     document.getElementById('btn-convert-paste')?.addEventListener('click', () => this.handlePaste('convert-input'));
     document.getElementById('btn-convert-clear')?.addEventListener('click', () => this.handleClearConvert());
     document.getElementById('btn-convert-copy')?.addEventListener('click', () => this.handleCopy('convert-output'));
     document.getElementById('btn-convert-download')?.addEventListener('click', () => this.handleConvertDownload());
 
-    // History panel
     document.getElementById('btn-clear-history')?.addEventListener('click', () => this.handleClearHistory());
 
-    // Settings change listeners
+    document.getElementById('btn-fold-all')?.addEventListener('click', () => this.handleFoldAll());
+    document.getElementById('btn-unfold-all')?.addEventListener('click', () => this.handleUnfoldAll());
+    document.getElementById('btn-expand-nav')?.addEventListener('click', () => this.handleExpandNav());
+    document.getElementById('btn-collapse-nav')?.addEventListener('click', () => this.handleCollapseNav());
+
     document.getElementById('select-indent')?.addEventListener('change', (e) => this.handleSettingsChange('indent', (e.target as HTMLSelectElement).value));
     document.getElementById('chk-sort-keys')?.addEventListener('change', (e) => this.handleSettingsChange('sortKeys', (e.target as HTMLInputElement).checked));
 
-    // Input change listeners for auto-save
-    document.getElementById('input-editor')?.addEventListener('input', () => this.handleInputChange());
-
-    // Settings button
     document.getElementById('btn-settings')?.addEventListener('click', () => this.openOptions());
   }
 
@@ -88,44 +186,40 @@ class PopupApp {
   }
 
   private switchTab(tab: string): void {
-    // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
     });
 
-    // Update panels
     document.querySelectorAll('.panel').forEach(panel => {
       panel.classList.toggle('active', panel.id === `panel-${tab}`);
     });
 
-    // Load history if switching to history tab
     if (tab === 'history') {
       this.loadHistory();
     }
+
+    setTimeout(() => {
+      this.refreshEditors();
+    }, 50);
+  }
+
+  private refreshEditors(): void {
+    this.inputEditor?.focus();
   }
 
   private async loadSavedContent(): Promise<void> {
     const content = await StorageManager.getCurrentContent();
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    if (inputEditor && content) {
-      inputEditor.value = content;
+    if (this.inputEditor && content) {
+      this.inputEditor.setValue(content);
       this.updateStats();
-    }
-  }
-
-  private handleInputChange(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    if (inputEditor) {
-      StorageManager.saveCurrentContent(inputEditor.value);
-      this.updateStats();
+      this.updatePathNavigator(content);
     }
   }
 
   private updateStats(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    if (!inputEditor) return;
+    if (!this.inputEditor) return;
 
-    const content = inputEditor.value;
+    const content = this.inputEditor.getValue();
     const stats = JSONFormatter.getStats(content);
 
     const lengthEl = document.getElementById('stats-length');
@@ -136,12 +230,9 @@ class PopupApp {
   }
 
   private handleFormat(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('output-editor') as HTMLTextAreaElement;
+    if (!this.inputEditor || !this.outputEditor) return;
 
-    if (!inputEditor || !outputEditor) return;
-
-    const input = inputEditor.value.trim();
+    const input = this.inputEditor.getValue().trim();
     if (!input) {
       this.showStatus('请输入 JSON 数据', 'error');
       return;
@@ -157,7 +248,7 @@ class PopupApp {
         escapeUnicode: this.settings.escapeUnicode,
       });
 
-      outputEditor.value = result;
+      this.outputEditor.setValue(result);
       this.showStatus('格式化成功', 'success');
 
       StorageManager.addHistoryItem({
@@ -170,12 +261,9 @@ class PopupApp {
   }
 
   private handleMinify(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('output-editor') as HTMLTextAreaElement;
+    if (!this.inputEditor || !this.outputEditor) return;
 
-    if (!inputEditor || !outputEditor) return;
-
-    const input = inputEditor.value.trim();
+    const input = this.inputEditor.getValue().trim();
     if (!input) {
       this.showStatus('请输入 JSON 数据', 'error');
       return;
@@ -183,7 +271,7 @@ class PopupApp {
 
     try {
       const result = JSONFormatter.minify(input);
-      outputEditor.value = result;
+      this.outputEditor.setValue(result);
       this.showStatus('压缩成功', 'success');
     } catch (error) {
       this.showStatus(`压缩失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error');
@@ -191,12 +279,13 @@ class PopupApp {
   }
 
   private handleValidate(): void {
-    const inputEditor = document.getElementById('validate-input') as HTMLTextAreaElement;
+    if (!this.validateEditor) return;
+
+    const input = this.validateEditor.getValue().trim();
     const resultContainer = document.getElementById('validation-result');
 
-    if (!inputEditor || !resultContainer) return;
+    if (!resultContainer) return;
 
-    const input = inputEditor.value.trim();
     if (!input) {
       resultContainer.innerHTML = '<div class="result-error">请输入 JSON 数据</div>';
       return;
@@ -235,14 +324,21 @@ class PopupApp {
     }
   }
 
+  private clearValidationResult(): void {
+    const resultContainer = document.getElementById('validation-result');
+    if (resultContainer) {
+      resultContainer.innerHTML = '<div class="result-placeholder">点击"验证 JSON"按钮开始验证</div>';
+    }
+  }
+
   private handleConvert(): void {
-    const inputEditor = document.getElementById('convert-input') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('convert-output') as HTMLTextAreaElement;
+    if (!this.convertInputEditor || !this.convertOutputEditor) return;
+
+    const input = this.convertInputEditor.getValue().trim();
     const typeSelect = document.getElementById('select-convert-type') as HTMLSelectElement;
 
-    if (!inputEditor || !outputEditor || !typeSelect) return;
+    if (!typeSelect) return;
 
-    const input = inputEditor.value.trim();
     if (!input) {
       this.showStatus('请输入数据', 'error');
       return;
@@ -272,7 +368,7 @@ class PopupApp {
           throw new Error('未知的转换类型');
       }
 
-      outputEditor.value = result;
+      this.convertOutputEditor.setValue(result);
       this.showStatus('转换成功', 'success');
 
       StorageManager.addHistoryItem({
@@ -284,32 +380,56 @@ class PopupApp {
     }
   }
 
-  private async handlePaste(editorId: string): Promise<void> {
+  private async handlePaste(editorType: string): Promise<void> {
     try {
       const text = await navigator.clipboard.readText();
-      const editor = document.getElementById(editorId) as HTMLTextAreaElement;
-      if (editor) {
-        editor.value = text;
-        this.showStatus('粘贴成功', 'success');
-
-        if (editorId === 'input-editor') {
-          this.updateStats();
-          StorageManager.saveCurrentContent(text);
-        }
+      
+      switch (editorType) {
+        case 'input':
+          if (this.inputEditor) {
+            this.inputEditor.setValue(text);
+            this.showStatus('粘贴成功', 'success');
+            this.updateStats();
+            this.updatePathNavigator(text);
+            StorageManager.saveCurrentContent(text);
+          }
+          break;
+        case 'validate':
+          if (this.validateEditor) {
+            this.validateEditor.setValue(text);
+            this.showStatus('粘贴成功', 'success');
+          }
+          break;
+        case 'convert-input':
+          if (this.convertInputEditor) {
+            this.convertInputEditor.setValue(text);
+            this.showStatus('粘贴成功', 'success');
+          }
+          break;
       }
     } catch {
       this.showStatus('无法访问剪贴板', 'error');
     }
   }
 
-  private async handleCopy(editorId: string): Promise<void> {
-    const editor = document.getElementById(editorId) as HTMLTextAreaElement;
-    if (!editor || !editor.value) {
+  private async handleCopy(editorType: string): Promise<void> {
+    let content = '';
+    
+    switch (editorType) {
+      case 'output':
+        content = this.outputEditor?.getValue() || '';
+        break;
+      case 'convert-output':
+        content = this.convertOutputEditor?.getValue() || '';
+        break;
+    }
+
+    if (!content) {
       this.showStatus('没有可复制的内容', 'error');
       return;
     }
 
-    const success = await StorageManager.copyToClipboard(editor.value);
+    const success = await StorageManager.copyToClipboard(content);
     if (success) {
       this.showStatus('已复制到剪贴板', 'success');
     } else {
@@ -318,38 +438,49 @@ class PopupApp {
   }
 
   private handleClear(): void {
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('output-editor') as HTMLTextAreaElement;
-
-    if (inputEditor) inputEditor.value = '';
-    if (outputEditor) outputEditor.value = '';
+    if (this.inputEditor) {
+      this.inputEditor.setValue('');
+    }
+    if (this.outputEditor) {
+      this.outputEditor.setValue('');
+    }
 
     StorageManager.saveCurrentContent('');
     this.updateStats();
+    this.updatePathNavigator('');
+    this.updateErrorList([]);
     this.showStatus('已清空', 'success');
   }
 
   private handleClearValidate(): void {
-    const inputEditor = document.getElementById('validate-input') as HTMLTextAreaElement;
-    const resultContainer = document.getElementById('validation-result');
-
-    if (inputEditor) inputEditor.value = '';
-    if (resultContainer) {
-      resultContainer.innerHTML = '<div class="result-placeholder">点击"验证 JSON"按钮开始验证</div>';
+    if (this.validateEditor) {
+      this.validateEditor.setValue('');
     }
+    this.clearValidationResult();
   }
 
   private handleClearConvert(): void {
-    const inputEditor = document.getElementById('convert-input') as HTMLTextAreaElement;
-    const outputEditor = document.getElementById('convert-output') as HTMLTextAreaElement;
-
-    if (inputEditor) inputEditor.value = '';
-    if (outputEditor) outputEditor.value = '';
+    if (this.convertInputEditor) {
+      this.convertInputEditor.setValue('');
+    }
+    if (this.convertOutputEditor) {
+      this.convertOutputEditor.setValue('');
+    }
   }
 
-  private handleDownload(editorId: string, type: string): void {
-    const editor = document.getElementById(editorId) as HTMLTextAreaElement;
-    if (!editor || !editor.value) {
+  private handleDownload(editorType: string, type: string): void {
+    let content = '';
+    
+    switch (editorType) {
+      case 'output':
+        content = this.outputEditor?.getValue() || '';
+        break;
+      case 'convert-output':
+        content = this.convertOutputEditor?.getValue() || '';
+        break;
+    }
+
+    if (!content) {
       this.showStatus('没有可下载的内容', 'error');
       return;
     }
@@ -358,15 +489,17 @@ class PopupApp {
     const mimeType = type === 'json' ? 'application/json' : 'text/plain';
     const filename = `output.${extension}`;
 
-    StorageManager.downloadFile(editor.value, filename, mimeType);
+    StorageManager.downloadFile(content, filename, mimeType);
     this.showStatus('下载已开始', 'success');
   }
 
   private handleConvertDownload(): void {
-    const outputEditor = document.getElementById('convert-output') as HTMLTextAreaElement;
+    if (!this.convertOutputEditor) return;
+
+    const content = this.convertOutputEditor.getValue();
     const typeSelect = document.getElementById('select-convert-type') as HTMLSelectElement;
 
-    if (!outputEditor || !outputEditor.value) {
+    if (!content) {
       this.showStatus('没有可下载的内容', 'error');
       return;
     }
@@ -383,7 +516,7 @@ class PopupApp {
     const extension = extensionMap[convertType] || 'txt';
     const filename = `converted.${extension}`;
 
-    StorageManager.downloadFile(outputEditor.value, filename, 'text/plain');
+    StorageManager.downloadFile(content, filename, 'text/plain');
     this.showStatus('下载已开始', 'success');
   }
 
@@ -392,6 +525,32 @@ class PopupApp {
       await StorageManager.clearHistory();
       this.loadHistory();
       this.showStatus('历史记录已清空', 'success');
+    }
+  }
+
+  private handleFoldAll(): void {
+    if (this.inputEditor) {
+      this.inputEditor.foldAll();
+      this.showStatus('已折叠所有区域', 'success');
+    }
+  }
+
+  private handleUnfoldAll(): void {
+    if (this.inputEditor) {
+      this.inputEditor.unfoldAll();
+      this.showStatus('已展开所有区域', 'success');
+    }
+  }
+
+  private handleExpandNav(): void {
+    if (this.pathNavigator) {
+      this.pathNavigator.expandAll();
+    }
+  }
+
+  private handleCollapseNav(): void {
+    if (this.pathNavigator) {
+      this.pathNavigator.collapseAll();
     }
   }
 
@@ -417,7 +576,6 @@ class PopupApp {
       </div>
     `).join('');
 
-    // Add delete handlers
     historyList.querySelectorAll('.history-delete').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -426,7 +584,6 @@ class PopupApp {
       });
     });
 
-    // Add click handlers to load content
     historyList.querySelectorAll('.history-item').forEach(item => {
       item.addEventListener('click', () => {
         const id = item.getAttribute('data-id');
@@ -444,15 +601,13 @@ class PopupApp {
     const history = await StorageManager.getHistory();
     const item = history.find(h => h.id === id);
 
-    if (item) {
-      const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-      if (inputEditor) {
-        inputEditor.value = item.content;
-        StorageManager.saveCurrentContent(item.content);
-        this.updateStats();
-        this.switchTab('format');
-        this.showStatus('已加载历史记录', 'success');
-      }
+    if (item && this.inputEditor) {
+      this.inputEditor.setValue(item.content);
+      StorageManager.saveCurrentContent(item.content);
+      this.updateStats();
+      this.updatePathNavigator(item.content);
+      this.switchTab('format');
+      this.showStatus('已加载历史记录', 'success');
     }
   }
 
@@ -472,20 +627,29 @@ class PopupApp {
       "name": "JSON Master",
       "version": "1.0.0",
       "description": "专业的 JSON 格式化与处理工具",
-      "features": ["格式化", "验证", "转换", "历史记录"],
+      "features": ["格式化", "验证", "转换", "历史记录", "语法高亮", "代码折叠", "路径导航"],
       "settings": {
         "indent": 2,
         "sortKeys": false,
         "theme": "auto"
       },
       "active": true,
-      "count": 42
+      "count": 42,
+      "nested": {
+        "level1": {
+          "level2": {
+            "level3": "deep value"
+          }
+        }
+      },
+      "nullValue": null
     };
 
-    const inputEditor = document.getElementById('input-editor') as HTMLTextAreaElement;
-    if (inputEditor) {
-      inputEditor.value = JSON.stringify(sampleData);
-      this.handleInputChange();
+    if (this.inputEditor) {
+      this.inputEditor.setValue(JSON.stringify(sampleData));
+      this.updateStats();
+      this.updatePathNavigator(JSON.stringify(sampleData));
+      StorageManager.saveCurrentContent(JSON.stringify(sampleData));
       this.showStatus('已加载示例数据', 'success');
     }
   }
@@ -515,7 +679,6 @@ class PopupApp {
   }
 }
 
-// Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   new PopupApp();
 });
