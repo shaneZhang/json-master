@@ -44,9 +44,11 @@
       const formatted = JSON.stringify(parsed, null, 2);
       
       // Create a formatted display
+      const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const pre = document.createElement('pre');
       pre.style.cssText = `
-        background: #f5f5f5;
+        background: ${isDarkMode ? '#1e1e1e' : '#f5f5f5'};
+        color: ${isDarkMode ? '#d4d4d4' : '#333'};
         padding: 20px;
         border-radius: 8px;
         overflow: auto;
@@ -58,41 +60,52 @@
       `;
       pre.textContent = formatted;
       
-      // Replace body content
+      // Replace body content with proper styling
       document.body.innerHTML = '';
+      document.body.setAttribute('style', '');
+      document.body.style.cssText = `
+        margin: 0 !important;
+        padding: 20px !important;
+        min-height: 100vh !important;
+        background: ${isDarkMode ? '#1e1e1e' : '#f5f5f5'} !important;
+        color: ${isDarkMode ? '#d4d4d4' : '#333'} !important;
+      `;
+      document.documentElement.style.background = isDarkMode ? '#1e1e1e' : '#f5f5f5';
       document.body.appendChild(pre);
       
       // Add a toolbar
       const toolbar = document.createElement('div');
       toolbar.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: white;
-        padding: 10px;
-        border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        font-family: system-ui, -apple-system, sans-serif;
-        font-size: 14px;
-        z-index: 10000;
+        position: fixed !important;
+        top: 10px !important;
+        right: 10px !important;
+        background: ${isDarkMode ? '#2d2d2d' : 'white'} !important;
+        color: ${isDarkMode ? '#e0e0e0' : '#333'} !important;
+        padding: 10px !important;
+        border-radius: 4px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+        font-family: system-ui, -apple-system, sans-serif !important;
+        font-size: 14px !important;
+        z-index: 100000 !important;
       `;
       toolbar.innerHTML = `
-        <span style="font-weight: bold; margin-right: 10px;">JSON Master</span>
+        <span style="font-weight: bold !important; margin-right: 10px !important; color: ${isDarkMode ? '#e0e0e0' : '#333'} !important;">JSON Master</span>
         <button id="json-master-copy" style="
-          background: #4CAF50;
-          color: white;
-          border: none;
-          padding: 5px 10px;
-          border-radius: 4px;
-          cursor: pointer;
-          margin-right: 5px;
+          background: #4CAF50 !important;
+          color: white !important;
+          border: none !important;
+          padding: 5px 10px !important;
+          border-radius: 4px !important;
+          cursor: pointer !important;
+          margin-right: 5px !important;
         ">复制</button>
         <button id="json-master-raw" style="
-          background: #f0f0f0;
-          border: 1px solid #ccc;
-          padding: 5px 10px;
-          border-radius: 4px;
-          cursor: pointer;
+          background: ${isDarkMode ? '#3d3d3d' : '#f0f0f0'} !important;
+          color: ${isDarkMode ? '#e0e0e0' : '#333'} !important;
+          border: 1px solid ${isDarkMode ? '#555' : '#ccc'} !important;
+          padding: 5px 10px !important;
+          border-radius: 4px !important;
+          cursor: pointer !important;
         ">查看原始</button>
       `;
       
@@ -146,10 +159,20 @@
     return true;
   });
 
-  // Auto-format JSON pages if enabled
+  // Auto-format JSON pages - always try to format JSON content
+  function initJsonFormatting() {
+    if (detectJsonContent()) {
+      formatPageJson();
+    }
+  }
+
+  // Try formatting immediately
+  initJsonFormatting();
+
+  // Also check after settings are loaded
   chrome.storage.sync.get('json_master_settings', (result) => {
     const settings = result['json_master_settings'];
-    if (settings?.autoFormat && detectJsonContent()) {
+    if (settings?.autoFormat !== false && detectJsonContent()) {
       formatPageJson();
     }
   });

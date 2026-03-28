@@ -54,6 +54,9 @@ function createPNG(size) {
 }
 
 const iconsDir = path.join(__dirname, 'dist', 'icons');
+if (!fs.existsSync(iconsDir)) {
+  fs.mkdirSync(iconsDir, { recursive: true });
+}
 [16, 32, 48, 128].forEach(size => {
   fs.writeFileSync(path.join(iconsDir, `icon${size}.png`), createPNG(size));
   console.log(`Created icon${size}.png`);

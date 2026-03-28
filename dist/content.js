@@ -1,5 +1,6 @@
-(function(){function c(){var e,o;const r=document.contentType||"",t=((o=(e=document.body)==null?void 0:e.innerText)==null?void 0:o.trim())||"";if(r.includes("application/json"))return!0;if(t){const n=t.trim();if(n.startsWith("{")&&n.endsWith("}")||n.startsWith("[")&&n.endsWith("]"))try{return JSON.parse(n),!0}catch{return!1}}return!1}function d(){var t,e;if(!c())return;const r=document.body.innerText.trim();try{const o=JSON.parse(r),n=JSON.stringify(o,null,2),a=document.createElement("pre");a.style.cssText=`
-        background: #f5f5f5;
+(function(){function s(){var o,r;const a=document.contentType||"",e=((r=(o=document.body)==null?void 0:o.innerText)==null?void 0:r.trim())||"";if(a.includes("application/json"))return!0;if(e){const n=e.trim();if(n.startsWith("{")&&n.endsWith("}")||n.startsWith("[")&&n.endsWith("]"))try{return JSON.parse(n),!0}catch{return!1}}return!1}function d(){var e,o;if(!s())return;const a=document.body.innerText.trim();try{const r=JSON.parse(a),n=JSON.stringify(r,null,2),t=window.matchMedia("(prefers-color-scheme: dark)").matches,c=document.createElement("pre");c.style.cssText=`
+        background: ${t?"#1e1e1e":"#f5f5f5"};
+        color: ${t?"#d4d4d4":"#333"};
         padding: 20px;
         border-radius: 8px;
         overflow: auto;
@@ -8,33 +9,41 @@
         line-height: 1.5;
         white-space: pre-wrap;
         word-wrap: break-word;
-      `,a.textContent=n,document.body.innerHTML="",document.body.appendChild(a);const i=document.createElement("div");i.style.cssText=`
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: white;
-        padding: 10px;
-        border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        font-family: system-ui, -apple-system, sans-serif;
-        font-size: 14px;
-        z-index: 10000;
-      `,i.innerHTML=`
-        <span style="font-weight: bold; margin-right: 10px;">JSON Master</span>
+      `,c.textContent=n,document.body.innerHTML="",document.body.setAttribute("style",""),document.body.style.cssText=`
+        margin: 0 !important;
+        padding: 20px !important;
+        min-height: 100vh !important;
+        background: ${t?"#1e1e1e":"#f5f5f5"} !important;
+        color: ${t?"#d4d4d4":"#333"} !important;
+      `,document.documentElement.style.background=t?"#1e1e1e":"#f5f5f5",document.body.appendChild(c);const m=document.createElement("div");m.style.cssText=`
+        position: fixed !important;
+        top: 10px !important;
+        right: 10px !important;
+        background: ${t?"#2d2d2d":"white"} !important;
+        color: ${t?"#e0e0e0":"#333"} !important;
+        padding: 10px !important;
+        border-radius: 4px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+        font-family: system-ui, -apple-system, sans-serif !important;
+        font-size: 14px !important;
+        z-index: 100000 !important;
+      `,m.innerHTML=`
+        <span style="font-weight: bold !important; margin-right: 10px !important; color: ${t?"#e0e0e0":"#333"} !important;">JSON Master</span>
         <button id="json-master-copy" style="
-          background: #4CAF50;
-          color: white;
-          border: none;
-          padding: 5px 10px;
-          border-radius: 4px;
-          cursor: pointer;
-          margin-right: 5px;
+          background: #4CAF50 !important;
+          color: white !important;
+          border: none !important;
+          padding: 5px 10px !important;
+          border-radius: 4px !important;
+          cursor: pointer !important;
+          margin-right: 5px !important;
         ">复制</button>
         <button id="json-master-raw" style="
-          background: #f0f0f0;
-          border: 1px solid #ccc;
-          padding: 5px 10px;
-          border-radius: 4px;
-          cursor: pointer;
+          background: ${t?"#3d3d3d":"#f0f0f0"} !important;
+          color: ${t?"#e0e0e0":"#333"} !important;
+          border: 1px solid ${t?"#555":"#ccc"} !important;
+          padding: 5px 10px !important;
+          border-radius: 4px !important;
+          cursor: pointer !important;
         ">查看原始</button>
-      `,document.body.appendChild(i),(t=document.getElementById("json-master-copy"))==null||t.addEventListener("click",()=>{navigator.clipboard.writeText(n).then(()=>{const s=document.getElementById("json-master-copy");if(s){const p=s.textContent;s.textContent="已复制!",setTimeout(()=>{s.textContent=p},2e3)}})}),(e=document.getElementById("json-master-raw"))==null||e.addEventListener("click",()=>{location.reload()})}catch(o){console.error("JSON Master: Failed to format JSON",o)}}chrome.runtime.onMessage.addListener((r,t,e)=>{var o;switch(r.action){case"getSelectedText":{const n=((o=window.getSelection())==null?void 0:o.toString())||"";e({text:n});break}case"formatPageJson":d(),e({success:!0});break;case"getPageUrl":e({url:location.href});break;default:e({error:"Unknown action"})}return!0}),chrome.storage.sync.get("json_master_settings",r=>{const t=r.json_master_settings;t!=null&&t.autoFormat&&c()&&d()}),console.log("JSON Master content script loaded")})();
+      `,document.body.appendChild(m),(e=document.getElementById("json-master-copy"))==null||e.addEventListener("click",()=>{navigator.clipboard.writeText(n).then(()=>{const i=document.getElementById("json-master-copy");if(i){const u=i.textContent;i.textContent="已复制!",setTimeout(()=>{i.textContent=u},2e3)}})}),(o=document.getElementById("json-master-raw"))==null||o.addEventListener("click",()=>{location.reload()})}catch(r){console.error("JSON Master: Failed to format JSON",r)}}chrome.runtime.onMessage.addListener((a,e,o)=>{var r;switch(a.action){case"getSelectedText":{const n=((r=window.getSelection())==null?void 0:r.toString())||"";o({text:n});break}case"formatPageJson":d(),o({success:!0});break;case"getPageUrl":o({url:location.href});break;default:o({error:"Unknown action"})}return!0});function p(){s()&&d()}p(),chrome.storage.sync.get("json_master_settings",a=>{const e=a.json_master_settings;(e==null?void 0:e.autoFormat)!==!1&&s()&&d()}),console.log("JSON Master content script loaded")})();

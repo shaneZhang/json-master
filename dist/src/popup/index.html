@@ -59,28 +59,42 @@
           </div>
         </div>
         
-        <div class="editor-container">
-          <div class="editor-wrapper">
-            <div class="editor-header">
-              <span>输入</span>
-              <div class="editor-actions">
-                <button id="btn-paste" class="text-btn">粘贴</button>
-                <button id="btn-clear" class="text-btn">清空</button>
-                <button id="btn-sample" class="text-btn">示例</button>
+        <div class="format-container">
+          <div class="tree-panel">
+            <div class="tree-header">
+              <span>JSON 结构</span>
+              <div class="tree-actions">
+                <input id="tree-search" type="text" class="tree-search" placeholder="搜索节点...">
+                <button id="btn-expand-all" class="text-btn" title="全部展开">展开</button>
+                <button id="btn-collapse-all" class="text-btn" title="全部折叠">折叠</button>
               </div>
             </div>
-            <textarea id="input-editor" class="editor" placeholder="在此粘贴 JSON 数据..."></textarea>
+            <div id="tree-container" class="tree-container"></div>
           </div>
           
-          <div class="editor-wrapper">
-            <div class="editor-header">
-              <span>输出</span>
-              <div class="editor-actions">
-                <button id="btn-copy" class="text-btn">复制</button>
-                <button id="btn-download" class="text-btn">下载</button>
+          <div class="editor-container">
+            <div class="editor-wrapper">
+              <div class="editor-header">
+                <span>输入</span>
+                <div class="editor-actions">
+                  <button id="btn-paste" class="text-btn">粘贴</button>
+                  <button id="btn-clear" class="text-btn">清空</button>
+                  <button id="btn-sample" class="text-btn">示例</button>
+                </div>
               </div>
+              <textarea id="input-editor" class="editor" placeholder="在此粘贴 JSON 数据..."></textarea>
             </div>
-            <textarea id="output-editor" class="editor" readonly placeholder="格式化后的结果将显示在这里..."></textarea>
+            
+            <div class="editor-wrapper">
+              <div class="editor-header">
+                <span>输出</span>
+                <div class="editor-actions">
+                  <button id="btn-copy" class="text-btn">复制</button>
+                  <button id="btn-download" class="text-btn">下载</button>
+                </div>
+              </div>
+              <textarea id="output-editor" class="editor" readonly placeholder="格式化后的结果将显示在这里..."></textarea>
+            </div>
           </div>
         </div>
         
@@ -114,6 +128,14 @@
         
         <div id="validation-result" class="validation-result">
           <div class="result-placeholder">点击"验证 JSON"按钮开始验证</div>
+        </div>
+        
+        <div id="error-panel" class="error-panel" style="display: none;">
+          <div class="error-panel-header">
+            <span>错误列表</span>
+            <span id="error-count" class="error-count">0</span>
+          </div>
+          <div id="error-container" class="error-container"></div>
         </div>
       </div>
 
