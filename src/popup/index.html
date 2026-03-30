@@ -42,6 +42,8 @@
           <div class="toolbar-group">
             <button id="btn-format" class="btn btn-primary">格式化</button>
             <button id="btn-minify" class="btn btn-secondary">压缩</button>
+            <button id="btn-fold-all" class="btn btn-secondary" title="全部折叠">折叠</button>
+            <button id="btn-unfold-all" class="btn btn-secondary" title="全部展开">展开</button>
           </div>
           <div class="toolbar-group">
             <select id="select-indent" class="select">
@@ -56,28 +58,54 @@
           </div>
         </div>
         
-        <div class="editor-container">
-          <div class="editor-wrapper">
-            <div class="editor-header">
-              <span>输入</span>
-              <div class="editor-actions">
-                <button id="btn-paste" class="text-btn">粘贴</button>
-                <button id="btn-clear" class="text-btn">清空</button>
-                <button id="btn-sample" class="text-btn">示例</button>
+        <div class="workspace">
+          <div class="sidebar">
+            <div class="sidebar-header">
+              <span>JSON 结构</span>
+              <div class="sidebar-actions">
+                <button id="btn-expand-tree" class="icon-btn-small" title="展开全部">⊕</button>
+                <button id="btn-collapse-tree" class="icon-btn-small" title="折叠全部">⊖</button>
               </div>
             </div>
-            <textarea id="input-editor" class="editor" placeholder="在此粘贴 JSON 数据..."></textarea>
+            <div class="tree-filter">
+              <input type="text" id="tree-filter-input" placeholder="搜索节点..." class="filter-input">
+            </div>
+            <div id="json-tree" class="json-tree"></div>
           </div>
           
-          <div class="editor-wrapper">
-            <div class="editor-header">
-              <span>输出</span>
-              <div class="editor-actions">
-                <button id="btn-copy" class="text-btn">复制</button>
-                <button id="btn-download" class="text-btn">下载</button>
+          <div class="editor-area">
+            <div class="editor-container">
+              <div class="editor-wrapper">
+                <div class="editor-header">
+                  <span>输入</span>
+                  <div class="editor-actions">
+                    <button id="btn-paste" class="text-btn">粘贴</button>
+                    <button id="btn-clear" class="text-btn">清空</button>
+                    <button id="btn-sample" class="text-btn">示例</button>
+                  </div>
+                </div>
+                <div id="input-editor" class="monaco-editor-container"></div>
+              </div>
+              
+              <div class="editor-wrapper">
+                <div class="editor-header">
+                  <span>输出</span>
+                  <div class="editor-actions">
+                    <button id="btn-copy" class="text-btn">复制</button>
+                    <button id="btn-download" class="text-btn">下载</button>
+                  </div>
+                </div>
+                <div id="output-editor" class="monaco-editor-container"></div>
               </div>
             </div>
-            <textarea id="output-editor" class="editor" readonly placeholder="格式化后的结果将显示在这里..."></textarea>
+            
+            <div id="error-panel-container" class="error-panel-container collapsed">
+              <div class="error-panel-header">
+                <span class="error-panel-title">错误列表</span>
+                <button id="btn-toggle-errors" class="icon-btn-small">▼</button>
+              </div>
+              <div id="error-panel" class="error-panel-content"></div>
+            </div>
           </div>
         </div>
         
@@ -86,6 +114,7 @@
           <div class="stats">
             <span id="stats-length">字符: 0</span>
             <span id="stats-lines">行数: 0</span>
+            <span id="stats-position">位置: 1:1</span>
           </div>
         </div>
       </div>
@@ -105,7 +134,7 @@
                 <button id="btn-validate-clear" class="text-btn">清空</button>
               </div>
             </div>
-            <textarea id="validate-input" class="editor" placeholder="在此粘贴要验证的 JSON 数据..."></textarea>
+            <div id="validate-input" class="monaco-editor-container"></div>
           </div>
         </div>
         
@@ -138,7 +167,7 @@
                 <button id="btn-convert-clear" class="text-btn">清空</button>
               </div>
             </div>
-            <textarea id="convert-input" class="editor" placeholder="在此粘贴数据..."></textarea>
+            <div id="convert-input" class="monaco-editor-container"></div>
           </div>
           
           <div class="editor-wrapper">
@@ -149,7 +178,7 @@
                 <button id="btn-convert-download" class="text-btn">下载</button>
               </div>
             </div>
-            <textarea id="convert-output" class="editor" readonly placeholder="转换后的结果将显示在这里..."></textarea>
+            <div id="convert-output" class="monaco-editor-container"></div>
           </div>
         </div>
       </div>

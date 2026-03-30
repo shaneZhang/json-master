@@ -33,7 +33,7 @@ class OptionsPage {
     if (indentSelect) {
       const indentValue = typeof this.settings.indent === 'number' 
         ? String(this.settings.indent) 
-        : this.settings.indent;
+        : 'tab';
       indentSelect.value = indentValue === '2' ? '2' : indentValue === '4' ? '4' : 'tab';
     }
 
@@ -64,7 +64,7 @@ class OptionsPage {
       const autoFormatCheckbox = document.getElementById('autoFormat') as HTMLInputElement;
       const maxHistoryInput = document.getElementById('maxHistoryItems') as HTMLInputElement;
 
-      const indentValue: number | 'tab' = indentSelect.value === 'tab' ? 'tab' : parseInt(indentSelect.value, 10);
+      const indentValue = indentSelect.value === 'tab' ? '\t' : parseInt(indentSelect.value, 10);
 
       const newSettings: Partial<Settings> = {
         indent: indentValue,
